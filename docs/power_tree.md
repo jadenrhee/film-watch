@@ -1,83 +1,156 @@
-Power Tree (Rev A)
+# Power Tree (Rev A)
 
-Sources
+---
 
-USB_5V: from USB connector
+## 1. Sources
 
-VBAT: 1S LiPo, 2.7V–4.2V
+* **USB_5V** — From USB connector
+* **VBAT** — 1S LiPo (2.7 V – 4.2 V)
 
-Charging Path
+---
 
+## 2. Charging Path
+
+```
 USB_5V → MCP73831 → VBAT
+```
 
-Charge current target: 100 mA (for ~200 mAh pack)
+* **Charge current target:** 100 mA
+* Intended for ~200 mAh LiPo pack
 
-Main Regulation
+---
 
+## 3. Main Regulation
+
+```
 VBAT → TPS7A02-3.0 → 3.0V_SYS
+```
 
-Rails
+* Low-IQ LDO
+* Regulated 3.0 V system rail
 
-3.0V_SYS powers:
+---
 
-nRF52832 module (MDBT42Q)
+## 4. System Rail Distribution
 
-IMU (LSM6DSOX)
+### 3.0V_SYS powers:
 
-ALS (VEML7700)
+* **nRF52832 module** (MDBT42Q)
+* **IMU** (LSM6DSOX)
+* **Ambient Light Sensor** (VEML7700)
+* **Memory LCD**
 
-Memory LCD
+---
 
-Power States
+# Power States
 
-S0 (Active): MCU on, display updates allowed, sensors active
+## S0 — Active
 
-S1 (Idle): MCU mostly sleeping, IMU running, periodic ALS sampling
+* MCU ON
+* Display updates allowed
+* Sensors active
 
-S2 (Deep sleep): MCU sleep, IMU in low-power step/interrupt mode, ALS off or lowest duty
+---
 
-Charging state: USB_5V present, battery charging, system may be on/off (define)
+## S1 — Idle
 
-Cutoffs
+* MCU mostly sleeping
+* IMU running
+* Periodic ALS sampling
 
-Battery cutoff target: VBAT ~3.1 V under load (to avoid brownouts during BLE bursts)
+---
 
-Brownout strategy: define BOR threshold + behavior
+## S2 — Deep Sleep (Default)
 
-Charging behavior (Rev A)
+* MCU in sleep mode
+* IMU in low-power step / interrupt mode
+* ALS OFF or lowest duty cycle
+* RTC running
 
-When USB_5V is present, the watch is OFF (no normal operation while charging).
+---
 
-Charging path: USB_5V → LiPo charger → VBAT
+## Charging State
 
-System rail 3.0V_SYS is disabled during charging (firmware does not run; no BLE; no display updates).
+When **USB_5V** is present:
 
-Rationale
+* Battery charging
+* System may be ON or OFF (final behavior TBD)
 
-Avoids power-path complexity in Rev A.
+---
 
-Simplifies bring-up and reduces brownout/edge-case risks during charge.
+# Cutoffs and Protection
 
-Sleep plan (Rev A)
+## Battery Cutoff
 
-Default state is Deep Sleep (S2). CPU off, RTC running.
+* Target: **VBAT ≈ 3.1 V under load**
+* Prevents brownouts during BLE bursts
 
-Wake sources:
+---
 
-IMU interrupt (raise-to-wake / step events)
+## Brownout Strategy
 
-Button GPIO interrupt
+* Define BOR threshold
+* Define firmware recovery behavior
 
-RTC periodic tick (timekeeping / housekeeping)
+---
 
-I2C bus is only enabled during wake window; disabled otherwise.
+# Charging Behavior (Rev A)
 
-Display SPI only active during wake window; display static otherwise.
+When **USB_5V** is present:
 
-BLE disabled by default; enabled only during user-initiated config window.
+* Watch is OFF
+* No normal operation during charging
+* No BLE
+* No display updates
+* Firmware not running
+* 3.0V_SYS disabled
 
-Sleep risks
+### Rationale
 
-Any floating GPIO, pull-up leakage, or sensor default mode can prevent achieving the µA-level sleep current.
+* Avoids power-path complexity in Rev A
+* Simplifies bring-up
+* Reduces brownout and edge-case risks
 
-Board-level sleep current must be measured during bring-up and compared to budget.
+---
+
+# Sleep Plan (Rev A)
+
+Default state: **Deep Sleep (S2)**
+
+* CPU OFF
+* RTC running
+
+---
+
+## Wake Sources
+
+* IMU interrupt (raise-to-wake / step events)
+* Button GPIO interrupt
+* RTC periodic tick (timekeeping / housekeeping)
+
+---
+
+## Peripheral Policy
+
+* I2C bus enabled only during wake window
+* Display SPI active only during wake window
+* Display remains static otherwise
+* BLE disabled by default
+
+  * Enabled only during user-initiated configuration window
+
+---
+
+# Sleep Risks
+
+The following can prevent achieving µA-level sleep current:
+
+* Floating GPIO
+* Pull-up leakage
+* Sensors left in default modes
+
+---
+
+## Bring-Up Requirement
+
+Board-level sleep current **must be measured during bring-up** and compared to the power budget.
