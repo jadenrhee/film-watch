@@ -1,131 +1,258 @@
-System rail decision
+# System Architecture — Rev A (Locked Decisions)
 
-Battery: 1S LiPo (2.7V–4.2V)
-System rail: 3.0V_SYS regulated
-Reason: battery reaches 4.2V; main ICs are not 4.2V tolerant (nRF52832 module supply 1.7–3.6V).
+---
 
-BLE MCU module (Locked)
+# 1. System Rail Decision
 
-Part: Raytac MDBT42Q (nRF52832 module)
-Supply: 1.7V–3.6V (compatible with 3.0V_SYS)
-Notes: BLE module chosen to reduce RF risk on Rev A.
+* **Battery:** 1S LiPo (2.7 V – 4.2 V)
+* **System rail:** 3.0V_SYS (regulated)
 
-IMU (Locked)
+### Rationale
 
-Part: LSM6DSOX (STMicroelectronics)
-Supply: 1.71V–3.6V analog supply; IO supply supported (compatible with 3.0V_SYS)
-Interface: I2C planned
-I2C address: 0x6A/0x6B (selectable via SDO)
-Use: step counting + raise-to-wake via interrupts.
+* Fully charged LiPo reaches 4.2 V
+* Primary ICs are **not 4.2 V tolerant**
+* nRF52832 module supply range: 1.7 V – 3.6 V
 
-Ambient light sensor (Locked)
+Therefore, VBAT must be regulated down to 3.0 V.
 
-Part: VEML7700 (Vishay)
-Supply: 2.5V–3.6V (compatible with 3.0V_SYS)
-Interface: I2C
-Use: lux measurement for EV/exposure recommendations.
+---
 
-Display (Locked decision: Memory LCD)
+# 2. BLE MCU Module (Locked)
 
-Part: Sharp Memory LCD LS013B7DH03 (1.28", 128x128)
-Supply: 2.7V–3.3V (compatible with 3.0V_SYS)
-Interface: SPI (serial)
-Reason: sunlight readable + low static power.
+* **Part:** Raytac MDBT42Q (nRF52832 module)
+* **Supply range:** 1.7 V – 3.6 V
+* **System compatibility:** Fully compatible with 3.0V_SYS
 
-MECH NOTE: confirm connector/FFC strategy with enclosure.
+### Notes
 
-Main system regulator (Locked)
+* Module used to reduce RF design risk on Rev A
 
-Part: TPS7A02-3.0 (Texas Instruments)
-Function: LiPo -> 3.0V_SYS LDO
-Stability: requires ≥0.5µF effective Cout; TI recommends ≥1µF ceramic for transient response
+---
 
-Caps (Rev A choice to ensure effective capacitance under bias):
-Cin: 2.2µF X7R ceramic (≥6.3V rating)
-Cout: 2.2µF X7R ceramic (≥6.3V rating)
+# 3. IMU (Locked)
 
-Enable: EN floating behaves as disabled per datasheet wording (treat EN as controlled signal).
+* **Part:** LSM6DSOX (STMicroelectronics)
+* **Supply range:** 1.71 V – 3.6 V
+* **IO supply:** Supported
+* **System compatibility:** Fully compatible with 3.0V_SYS
+* **Interface:** I2C
+* **Address:** 0x6A / 0x6B (selectable via SDO)
 
-LiPo charger (Locked for Rev A simplicity)
+### Use Case
 
-Part family: MCP73831 (Microchip)
-Function: single-cell Li-Ion/Li-Po linear charger, programmable charge current with PROG resistor
-Regulation voltage options include 4.2V variants (select 4.2V termination)
+* Step counting
+* Raise-to-wake via interrupt
 
-Recommended specific orderable: MCP73831-2 (4.2V regulation option; exact suffix per distributor availability)
+---
 
-Charge current target (Rev A): 100mA (0.5C for 200mAh pack)
-Notes: linear charger; manage thermals via copper pour near IC.
+# 4. Ambient Light Sensor (Locked)
 
-USB power input connector (Rev A)
+* **Part:** VEML7700 (Vishay)
+* **Supply range:** 2.5 V – 3.6 V
+* **System compatibility:** Fully compatible with 3.0V_SYS
+* **Interface:** I2C
 
-Option A (recommended for Rev A): USB-C receptacle (power-only)
-Requirement: two 5.1k pull-downs from CC1 and CC2 to GND to advertise as a sink (UFP).
+### Use Case
 
-Parts (MECH-DEPENDENT): choose a USB-C receptacle that matches your enclosure cutout and footprint library.
+* Lux measurement
+* EV / exposure recommendations
 
-Option B (simpler footprint): Micro-USB receptacle (power-only)
+---
 
-Battery connector (MECH-DEPENDENT)
+# 5. Display (Locked — Memory LCD)
 
-Option A: JST-PH 2-pin (common LiPo connector)
-Option B: JST-SH 2-pin (smaller, harder to plug/unplug)
+* **Part:** Sharp LS013B7DH03
+* **Size / Resolution:** 1.28", 128 × 128
+* **Supply range:** 2.7 V – 3.3 V
+* **System compatibility:** Fully compatible with 3.0V_SYS
+* **Interface:** SPI
 
-Pick after you choose the actual battery.
+### Rationale
 
-Buttons (3 side buttons)
+* Sunlight readable
+* Extremely low static power
 
-Part type: side-actuated tactile switch (SMD)
-Electrical: connect to MCU GPIO with pull-ups; optional RC + ESD strategy per layout
+### Mechanical Note
 
-MECH-DEPENDENT: exact switch model depends on enclosure wall thickness and actuator geometry.
+* Confirm connector / FFC strategy with enclosure
 
-Required passives (Rev A default values)
+---
 
-I2C pull-ups (to 3.0V_SYS):
+# 6. Main System Regulator (Locked)
 
-SDA pull-up: 4.7k
+* **Part:** TPS7A02-3.0 (Texas Instruments)
+* **Function:** LiPo → 3.0V_SYS LDO
 
-SCL pull-up: 4.7k
-(Adjust later if you run faster I2C or have long traces.)
+### Stability Requirements
 
-USB-C CC resistors (if USB-C):
+* Minimum effective Cout: ≥0.5 µF
+* TI recommendation: ≥1 µF ceramic for improved transient response
 
-CC1 to GND: 5.1k
+### Capacitors (Rev A Selection)
 
-CC2 to GND: 5.1k
+To maintain effective capacitance under DC bias:
 
-Decoupling (place at each IC/module supply pin cluster):
+* **Cin:** 2.2 µF X7R ceramic (≥6.3 V rating)
+* **Cout:** 2.2 µF X7R ceramic (≥6.3 V rating)
 
-0.1µF X7R at each VDD pin group
+### Enable Pin
 
-1.0µF bulk per rail region (near module + near sensors)
+* EN floating behaves as disabled per datasheet
+* Treat EN as a controlled signal
 
-Optional bulk near load steps:
+---
 
-4.7µF X7R on 3.0V_SYS near display connector / module area
+# 7. LiPo Charger (Locked — Rev A Simplicity)
 
-Charger caps (typical):
+* **Part family:** MCP73831 (Microchip)
+* **Function:** Single-cell Li-Ion / LiPo linear charger
+* **Regulation voltage:** Select 4.2 V termination variant
 
-1.0µF at VDD (USB input) close to MCP73831 VDD pin
+### Recommended Variant
 
-1.0µF at VBAT close to battery pin (confirm exact in MCP datasheet)
+* MCP73831-2 (4.2 V regulation option)
+* Confirm exact suffix per distributor availability
 
-Programming / debug
+### Charge Current (Rev A)
 
-SWD pads: SWDIO, SWCLK, GND, 3.0V_SYS (and RESET if available)
-Test pads: VBAT, 3.0V_SYS, GND, SDA, SCL, SPI lines (at minimum)
+* Target: 100 mA
+* Equivalent to 0.5C for 200 mAh battery
 
-Compatibility summary (Week-1 pass conditions)
+### Notes
 
-All ICs operate within 3.0V_SYS:
+* Linear charger
+* Manage thermals via copper pour near IC
 
-MDBT42Q (nRF52832): 1.7–3.6V
+---
 
-LSM6DSOX: 1.71–3.6V
+# 8. USB Power Input
 
-VEML7700: 2.5–3.6V
+## Option A (Recommended — Rev A)
 
-LS013B7DH03 Memory LCD: 2.7–3.3V
+* **Connector:** USB-C receptacle (power-only)
+* **Requirement:**
 
-Regulator stability requirement captured for TPS7A02 output capacitance.
+  * 5.1 kΩ pull-down on CC1 to GND
+  * 5.1 kΩ pull-down on CC2 to GND
+* Advertises as sink (UFP)
+
+### Mechanical Note
+
+* Choose receptacle based on enclosure cutout and footprint library
+
+---
+
+## Option B (Simpler Footprint)
+
+* Micro-USB receptacle (power-only)
+
+---
+
+# 9. Battery Connector (Mechanical Dependent)
+
+## Option A
+
+* JST-PH 2-pin (common LiPo connector)
+
+## Option B
+
+* JST-SH 2-pin (smaller, less user-friendly)
+
+Select after final battery choice.
+
+---
+
+# 10. Buttons (3 Side Buttons)
+
+* **Type:** Side-actuated tactile switch (SMD)
+* **Electrical:**
+
+  * Connect to MCU GPIO
+  * Use pull-ups
+  * Optional RC + ESD protection
+
+### Mechanical Note
+
+Switch selection depends on enclosure wall thickness and actuator geometry.
+
+---
+
+# 11. Required Passives (Rev A Defaults)
+
+---
+
+## I2C Pull-Ups (to 3.0V_SYS)
+
+* SDA: 4.7 kΩ
+* SCL: 4.7 kΩ
+
+Adjust if increasing I2C speed or using long traces.
+
+---
+
+## USB-C CC Resistors
+
+* CC1 → GND: 5.1 kΩ
+* CC2 → GND: 5.1 kΩ
+
+---
+
+## Decoupling
+
+Place near each IC or supply pin cluster:
+
+* 0.1 µF X7R at each VDD group
+* 1.0 µF bulk per rail region (near module + near sensors)
+
+---
+
+## Optional Bulk Cap (Load Step Stability)
+
+* 4.7 µF X7R on 3.0V_SYS
+
+  * Place near display connector / module area
+
+---
+
+## Charger Capacitors (Typical)
+
+* 1.0 µF at VDD (USB input) close to MCP73831 VDD
+* 1.0 µF at VBAT close to battery pin
+
+  * Confirm exact values in MCP datasheet
+
+---
+
+# 12. Programming and Debug
+
+## SWD Pads
+
+* SWDIO
+* SWCLK
+* GND
+* 3.0V_SYS
+* RESET (if available)
+
+## Recommended Test Pads
+
+* VBAT
+* 3.0V_SYS
+* GND
+* SDA
+* SCL
+* SPI lines (minimum)
+
+---
+
+# 13. Compatibility Summary (Week-1 Pass Conditions)
+
+All ICs operate safely within 3.0V_SYS:
+
+* MDBT42Q (nRF52832): 1.7 V – 3.6 V
+* LSM6DSOX: 1.71 V – 3.6 V
+* VEML7700: 2.5 V – 3.6 V
+* LS013B7DH03 Memory LCD: 2.7 V – 3.3 V
+
+Regulator stability requirement captured:
+
+* TPS7A02 output capacitance meets datasheet minimums.
