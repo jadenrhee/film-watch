@@ -1,52 +1,161 @@
-***Film watch architecture***
+# Film Watch Architecture — Rev A
 
-***Power Tree*** 
+---
 
-LiPo Battery (2.7V–4.2V)
-→ Charger IC
-→ Protection
-→ 3.0V LDO
-→ System Rail (MCU, IMU, ALS, Display)
+# 1. Power Tree
 
-All digital and sensor components operate from a single regulated 3.0V domain.
+```
+LiPo Battery (2.7 V – 4.2 V)
+    → Charger IC
+    → Protection
+    → 3.0 V LDO
+    → System Rail (MCU, IMU, ALS, Display)
+```
 
-***Bus Topology***
+* All digital and sensor components operate from a single regulated **3.0V_SYS** domain.
+* Simplified single-rail architecture for Rev A.
 
-I2C Bus:
+---
 
-→LSM6DSOX
+# 2. Power Domains (Rev A)
 
-→VEML7700
-  Shared bus with pull-ups to 3.0V.
+## VBAT
 
-SPI Bus:
+* 2.7 V – 4.2 V
+* Direct from 1S LiPo
 
-→Memory LCD
+## 3.0V_SYS
 
-Interrupt Lines:
+* Regulated by **TPS7A02-3.0**
+* Powers:
 
-→IMU INT1 → MCU wake pin
+  * MCU
+  * IMU
+  * ALS
+  * Display
 
-→Optional ALS interrupt
+All digital logic and sensors operate exclusively from 3.0V_SYS.
 
-Buttons:
+---
 
-→3 GPIO inputs with internal pull-ups.
+# 3. Bus Topology
 
-Power domains (Rev A)
+---
 
-VBAT: 2.7V–4.2V from 1S LiPo
+# I2C Bus (Shared — I2C0)
 
-3.0V_SYS: regulated by TPS7A02-3.0; all digital + sensors run from 3.0V_SYS
+## Devices
 
-I2C topology
+* LSM6DSOX (IMU)
 
-3.0V pull-ups on SDA/SCL
+  * Address: 0x6A / 0x6B (selectable)
+* VEML7700 (ALS)
 
-Devices: LSM6DSOX (0x6A/0x6B selectable) and VEML7700 (I2C)
+## Pull-Ups
 
-Bus recovery plan: firmware toggles SCL if SDA stuck (to be implemented in firmware layer)
+* SDA → 3.0V_SYS via 4.7 kΩ
+* SCL → 3.0V_SYS via 4.7 kΩ
 
-USB-C power input (if used)
+## Rules (Rev A)
 
-Sink configuration uses 5.1k pulldowns on CC1/CC2 to GND
+* Keep traces short
+* No additional devices on bus in Rev A
+* Firmware implements bus recovery:
+
+  * Toggle SCL if SDA becomes stuck
+
+---
+
+# SPI Bus (SPI0 — Dedicated)
+
+## Device
+
+* Sharp Memory LCD
+
+## Signals
+
+* SCK
+* MOSI
+* CS
+* DISP_EN (if used)
+* EXTCOMIN (if required by LCD variant)
+
+## Rules
+
+* Dedicated bus (no sharing)
+* Active only during wake window
+
+---
+
+# 4. Interrupt Architecture (Rev A Locked)
+
+---
+
+## Wake Sources
+
+* IMU INT1 → MCU wake-capable GPIO
+* 3 Button GPIO interrupts
+* RTC periodic tick (timekeeping)
+
+---
+
+## IMU Interrupt Usage
+
+* Only **INT1** used in Rev A
+* INT1 handles:
+
+  * Raise-to-wake
+  * Step detection
+
+Firmware determines event source via IMU status registers.
+
+---
+
+# 5. Buttons
+
+* 3 side buttons
+* Connected to MCU GPIO
+* Use internal pull-ups
+* Interrupt-capable inputs
+
+---
+
+# 6. USB-C Power Input (If Used)
+
+* Configured as sink (UFP)
+* 5.1 kΩ pulldown resistors:
+
+  * CC1 → GND
+  * CC2 → GND
+
+Power-only implementation for Rev A.
+
+---
+
+# 7. Power Enable Behavior (Rev A Locked)
+
+## Charging State
+
+* Watch is OFF while USB is present
+* No firmware operation during charging
+* No BLE
+* No display updates
+
+## Normal Operation
+
+* System rail: 3.0V_SYS from TPS7A02-3.0
+* Default runtime state: Deep Sleep
+
+  * IMU running in low-power mode
+  * MCU in sleep
+  * Display static
+
+---
+
+# Rev A Design Principles
+
+* Single regulated 3.0 V domain
+* Minimal bus complexity
+* Dedicated SPI for display
+* Shared I2C limited to two sensors
+* Hardware kept simple; firmware handles recovery and wake logic
