@@ -1,153 +1,199 @@
-Battery:
+# Battery & Runtime Budget (Rev A)
 
-Capacity: 200 mAh (nominal)
+---
 
-Usable fraction: 80% (aging + cutoff margin)
+# 1. Battery
 
-Usable mAh: 160 mAh
+* **Capacity (nominal):** 200 mAh
+* **Usable fraction:** 80% (aging + cutoff margin)
+* **Usable capacity:** 160 mAh
 
-Assumptions:
+---
 
-Day length: 24 hours
+# 2. Assumptions
 
-System rail: 3.0V_SYS
+* Day length: 24 hours
+* System rail: **3.0V_SYS**
+* Watch is OFF while charging (no runtime counted during charge)
 
-Watch is OFF while charging (no runtime counted during charge)
+---
 
-Currents (typical + peak):
+# 3. Current Consumption (Typical + Peak)
 
-MCU (nRF52832 / MDBT42Q module)
+---
 
-Deep sleep (System ON, RTC wake): 1.9 µA (typical @ 3 V)
+## MCU — nRF52832 (MDBT42Q)
 
-Idle (CPU awake, light processing): 3.0 mA (assumption: short bursts; conservative placeholder)
+* **Deep sleep (System ON, RTC wake):** 1.9 µA @ 3 V
+* **Idle (CPU awake, light processing):** 3.0 mA (placeholder)
+* **BLE advertising average:** 0.02 mA (long interval, short event; placeholder)
+* **BLE connected average:** 3.0 mA (config activity; placeholder)
+* **Peak TX burst:** 7.1 mA @ 0 dBm (1 Mb/s, HFXO)
 
-BLE advertising average: 0.02 mA (assumption: long interval, short event; placeholder)
+---
 
-BLE connected average: 3.0 mA during config activity (assumption: active connection + some traffic; placeholder)
+## IMU — LSM6DSOX
 
-Peak TX burst: 7.1 mA @ 0 dBm (TX @ 1 Mb/s, HFXO)
+* **Step / wake mode:** 26 µA (low-power, ODR = 50 Hz)
+* **Active (high-performance):** 170 µA
 
-IMU (LSM6DSOX)
+---
 
-Step / wake mode: 26 µA (accelerometer low-power mode, ODR=50 Hz)
+## Ambient Light Sensor — VEML7700
 
-Active (accelerometer high-performance): 170 µA
+* **Low-power PSM (sample mode):** 2 µA typical (PSM = 11, ~4100 ms refresh)
+* **Typical duty cycle:** Always in low-power PSM
 
-ALS (VEML7700)
+  * Brief I2C reads ignored
+* **Shutdown current:** 0.5 µA (if explicitly shut down)
 
-Sample mode current (low-power PSM): 2 µA typical (PSM=11, refresh ~4100 ms)
+---
 
-Duty cycle (typical): always in low-power PSM (2 µA avg), plus brief I2C reads (ignored)
+## Display — Sharp Memory LCD (LS013B7DH03)
 
-Shutdown current: 0.5 µA typ (only if we explicitly shut it down)
+* **Static (no updates):** 20 µA max
+* **Dynamic update:** 340 µA max during active update
+* **Average current:** Derived from wake/update behavior below
 
-Display (Sharp Memory LCD LS013B7DH03)
+---
 
-Static (no updates): 20 µA max
+## LDO — TPS7A02-3.0
 
-Dynamic update: 340 µA max while actively updating
+* **Quiescent current (IQ):** 25 nA typical (~0.000025 mA)
+* Dropout handled via brownout/cutoff strategy
 
-Estimated average current (typical): computed from wake/update behavior below
+---
 
-LDO overhead (TPS7A02-3.0)
+# 4. Daily Usage Scenario — Typical Day (Rev A)
 
-IQ: 25 nA typical (~0.000025 mA)
+* Wake events/day: 200
+* Wake duration: 3 s per event
+* BLE config usage: 5 minutes/day (300 s)
+* Display updates: During wake only
+* Steps/day: 8,000–12,000
 
-Worst-case dropout event: handled in separate brownout/cutoff strategy
+---
 
-Daily usage scenario — Typical Day (Rev A)
+# 5. Typical-Day Average Current Estimate
 
-Wake events/day: 200
+---
 
-Wake duration: 3 s per event (screen on + quick UI)
+## Baseline (Always-On)
 
-BLE config minutes/day: 5 minutes (connected and active)
+* MCU sleep: 1.9 µA
+* IMU low-power: 26 µA
+* ALS low-power: 2 µA
+* Display static: 20 µA
+* LDO IQ: 0.025 µA
 
-Display updates/day: during wake only
+**Baseline total ≈ 49.9 µA (0.0499 mA)**
 
-Steps/day: 8000–12000 (IMU stays in low-power step/wake mode)
+---
 
-Typical-day average current estimate:
+## Wake-Time Extra (Over Baseline)
 
-Baseline (always-on):
+Per wake:
 
-MCU sleep: 1.9 µA
+* MCU active vs sleep:
 
-IMU low-power: 26 µA
+  * (3.0 mA − 0.0019 mA) ≈ +2.998 mA
 
-ALS low-power: 2 µA
+* Display dynamic vs static:
 
-Display static: 20 µA
+  * (0.340 mA − 0.020 mA) = +0.320 mA
 
-LDO IQ: ~0.025 µA
-Baseline total ≈ 49.9 µA = 0.0499 mA
+* ALS temporary increase (placeholder):
 
-Wake-time extra (over baseline), per wake:
+  * (0.045 mA − 0.002 mA) = +0.043 mA
 
-MCU active instead of sleep: + (3.0 mA - 0.0019 mA) ≈ +2.998 mA
+**Extra during wake ≈ +3.361 mA**
 
-Display dynamic instead of static: + (0.340 mA - 0.020 mA) = +0.320 mA
+Total wake time/day:
+200 × 3 s = 600 s
 
-ALS temporarily active (conservative): + (0.045 mA - 0.002 mA) = +0.043 mA (placeholder for “more frequent reads”)
-Extra during wake ≈ +3.361 mA
+---
 
-Total wake time/day = 200 * 3 s = 600 s
+## BLE Config Extra (Over Baseline)
 
-BLE config extra (over baseline):
+* MCU + radio active: 3.0 mA for 300 s
+* Display dynamic during config: +0.320 mA
 
-Assume MCU+radio active: 3.0 mA for 5 min/day (300 s)
+**Extra during BLE ≈ +3.318 mA**
 
-Assume display dynamic during BLE config: +0.320 mA (conservative)
-Extra during BLE ≈ +3.318 mA
+---
 
-Compute average current:
+## Average Current Calculation
+
+```
 I_avg ≈ baseline
-+ (3.361 mA)(600/86400)
-+ (3.318 mA)(300/86400)
++ (3.361 mA)(600 / 86400)
++ (3.318 mA)(300 / 86400)
+```
 
-Result:
+**Result:**
 
 I_avg ≈ 0.085 mA
 
-Life_hours = 160 mAh / 0.085 mA ≈ 1880 hours (~78 days)
+---
 
-Margin vs 24 hours ≈ extremely high (>7000%)
+## Battery Life (Typical Day)
 
-Interpretation:
+```
+Life_hours = 160 mAh / 0.085 mA ≈ 1880 hours
+```
 
-24 hours is achievable with large margin if firmware actually reaches sleep states and display is mostly static.
+≈ 78 days
 
-Worst realistic day scenario (stress test)
+Margin vs 24 hours: Extremely high (>7000%)
 
-Wake events/day: 1000
+---
 
-Wake duration: 5 s per event (heavy use)
+# Interpretation (Typical Day)
 
-BLE config minutes/day: 30 minutes (1800 s)
+24-hour runtime is achievable with large margin **if firmware reliably reaches sleep states** and the display remains mostly static.
 
-ALS: forced “more active” behavior: 45 µA constant (worst-case placeholder using non-PSM style activity level from app-note table)
+---
 
-MCU active during wakes/BLE: 5 mA placeholder (conservative)
+# 6. Worst Realistic Day (Stress Test)
 
-Display dynamic during wakes/BLE: 0.340 mA max
+* Wake events/day: 1000
+* Wake duration: 5 s per event
+* BLE config: 30 minutes/day (1800 s)
+* ALS forced active: 45 µA constant
+* MCU active during wakes/BLE: 5 mA (conservative placeholder)
+* Display dynamic during wakes/BLE: 0.340 mA max
 
-Result (conservative placeholders):
+---
+
+## Result (Conservative Assumptions)
 
 I_avg ≈ 0.51 mA
 
-Life_hours = 160 mAh / 0.51 mA ≈ 313 hours (~13 days)
+```
+Life_hours = 160 mAh / 0.51 mA ≈ 313 hours
+```
 
-Margin vs 24 hours ≈ ~1200%
+≈ 13 days
 
-Open items (must replace placeholders with measured or Nordic PS values):
+Margin vs 24 hours ≈ 1200%
 
-Replace MCU “idle” and “BLE connected average” placeholders with values from Nordic current tables / Power Profiler measurements.
+---
 
-Confirm display update behavior in firmware (partial updates vs full refresh, EXTCOMIN/VCOM requirements).
+# 7. Open Items (Replace Placeholders)
 
-Validate actual system sleep current on hardware (board-level leakage, pull-ups, sensor defaults).
+* Replace MCU “idle” and “BLE connected average” with Nordic current-table values or Power Profiler measurements
+* Confirm display update behavior (partial vs full refresh, EXTCOMIN/VCOM handling)
+* Validate board-level sleep current on hardware (leakage, pull-ups, sensor defaults)
 
-Goal check:
+---
 
-≥24 hours with ≥20% margin: PASS (even under conservative “worst realistic day” placeholders)
+# 8. Goal Check
+
+Requirement:
+
+* ≥ 24 hours runtime
+* ≥ 20% margin
+
+**Status: PASS**
+
+Even under conservative worst-day assumptions, runtime significantly exceeds 24 hours.
