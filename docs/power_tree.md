@@ -57,3 +57,27 @@ Rationale
 Avoids power-path complexity in Rev A.
 
 Simplifies bring-up and reduces brownout/edge-case risks during charge.
+
+Sleep plan (Rev A)
+
+Default state is Deep Sleep (S2). CPU off, RTC running.
+
+Wake sources:
+
+IMU interrupt (raise-to-wake / step events)
+
+Button GPIO interrupt
+
+RTC periodic tick (timekeeping / housekeeping)
+
+I2C bus is only enabled during wake window; disabled otherwise.
+
+Display SPI only active during wake window; display static otherwise.
+
+BLE disabled by default; enabled only during user-initiated config window.
+
+Sleep risks
+
+Any floating GPIO, pull-up leakage, or sensor default mode can prevent achieving the µA-level sleep current.
+
+Board-level sleep current must be measured during bring-up and compared to budget.
